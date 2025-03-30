@@ -9,24 +9,41 @@ jobs:
   updateAuthor:
     runs-on: ubuntu-latest
     steps:
-      - name: checking out code
+
+      # ✅ 1. Verifica el código desde el repositorio
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: extract commit data
+      # ✅ 2. Extrae datos del commit
+      - name: Extract commit data
         uses: rlespinasse/git-commit-data-action@v1.x
 
+      # ✅ 3. Actualiza el archivo AUTHOR con el nombre del autor del commit
       - name: Update Author information
-        run: echo ${{ env.GIT_COMMIT_AUTHOR_NAME }} > AUTHOR
+        run: echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
 
+      # ✅ 4. Fuerza un cambio para asegurar siempre un nuevo commit
+      - name: Force Change to Trigger PR
+        run: |
+          echo "$(date)" > timestamp.txt
+          echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
+
+      # ✅ 5. Verifica si hay cambios antes de continuar
       - name: Check for changes
         run: |
           git diff --quiet || echo "There are changes to commit" || exit 1
 
+      # ✅ 6. Elimina la rama 'auto-pr-branch' si ya existe para evitar conflictos
+      - name: Delete auto-pr-branch if it exists
+        run: |
+          git push origin --delete auto-pr-branch || echo "Branch does not exist, continuing..."
+
+      # ✅ 7. Crea el Pull Request automático
       - name: Raise PR
         uses: peter-evans/create-pull-request@v3
         with:
-          branch: "auto-pr-branch1"
-          branch-suffix: timestamp
+          branch: "auto-pr-branch"
+          branch-suffix: timestamp  # Agrega un sufijo para evitar colisiones
           base: main
           title: "This is the title of the automatic PR"
           committer: ${{ env.GIT_COMMIT_AUTHOR_NAME }} <${{ env.GIT_COMMIT_AUTHOR_EMAIL }}>
@@ -35,3 +52,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           delete-branch: true
 
+      # ✅ 8. Habilita depuración para obtener más detalles en caso de errores
+      - name: Enable Debug Mode (Optional)
+        run: echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
