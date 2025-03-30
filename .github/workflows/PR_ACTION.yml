@@ -3,12 +3,20 @@ name: Demo to create automatic PR
 on:
   push:
     branches:
-      - main
+      - "**"
+    paths-ignore:
+      - "AUTHOR"  # Ignora cambios que puedan reiniciar el ciclo
+      - "timestamp.txt"
 
 jobs:
   updateAuthor:
     runs-on: ubuntu-latest
     steps:
+
+      # ✅ Verificación para evitar loops si el commit es de create-pull-request
+      - name: Skip if PR from create-pull-request
+        if: contains(github.event.head_commit.message, '[create-pull-request]')
+        run: echo "Skipping workflow triggered by create-pull-request" && exit 0
 
       # ✅ 1. Verifica el código desde el repositorio
       - name: Checkout code
@@ -18,11 +26,16 @@ jobs:
       - name: Extract commit data
         uses: rlespinasse/git-commit-data-action@v1.x
 
+      # ✅ 3. Actualiza el archivo AUTHOR con el nombre del autor del commit
+      - name: Update Author information
+        run: echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
+
       # ✅ 4. Fuerza un cambio para asegurar siempre un nuevo commit
       - name: Force Change to Trigger PR
         run: |
           echo "$(date)" > timestamp.txt
-          
+          echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
+
       # ✅ 5. Verifica si hay cambios antes de continuar
       - name: Check for changes
         run: |
@@ -38,7 +51,7 @@ jobs:
         uses: peter-evans/create-pull-request@v3
         with:
           branch: "auto-pr-branch"
-          branch-suffix: timestamp  # Agrega un sufijo para evitar colisiones
+          branch-suffix: timestamp  # Agrega un sufijo para evitar conflictos
           base: main
           title: "This is the title of the automatic PR"
           committer: ${{ env.GIT_COMMIT_AUTHOR_NAME }} <${{ env.GIT_COMMIT_AUTHOR_EMAIL }}>
