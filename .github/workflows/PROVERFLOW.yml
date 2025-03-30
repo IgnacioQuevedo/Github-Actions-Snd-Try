@@ -15,5 +15,5 @@ jobs:
         with:
           destination_branch: "main"
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr_label: "feature, automated pr"
+          pr_label: "feature"
           pr_title: "[Example] Simple demo"
