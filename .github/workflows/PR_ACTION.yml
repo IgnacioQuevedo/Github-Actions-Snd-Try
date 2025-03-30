@@ -3,10 +3,10 @@ name: Demo to create automatic PR
 on:
   push:
     branches:
-      - "**"
+      - "feature/**"  # Detecta cambios en tus ramas feature/...
     paths-ignore:
-      - "AUTHOR"  # Ignora cambios en `AUTHOR` para evitar loops infinitos
-      - "timestamp.txt"  # Ignora cambios en `timestamp.txt` también
+      - "AUTHOR"  # Ignora cambios para evitar loops infinitos
+      - "timestamp.txt"
 
 jobs:
   updateAuthor:
@@ -22,40 +22,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # ✅ 3. Extrae datos del commit
+      # ✅ 3. Identifica y cambia a la rama `feature/...` donde ocurrió el push
+      - name: Checkout feature branch
+        run: |
+          git fetch origin
+          git checkout ${{ github.event.ref }}  # Cambia a la rama original del push
+
+      # ✅ 4. Actualiza los cambios desde la rama feature y main
+      - name: Merge feature branch into main
+        run: |
+          git pull origin ${{ github.event.ref }} --rebase  # Actualiza desde feature/...
+          git pull origin main --rebase  # Trae los cambios más recientes de main
+
+      # ✅ 5. Extrae datos del commit
       - name: Extract commit data
         uses: rlespinasse/git-commit-data-action@v1.x
 
-      # ✅ 4. Actualiza el archivo AUTHOR con el nombre del autor del commit
+      # ✅ 6. Actualiza el archivo AUTHOR con el nombre del autor del commit
       - name: Update Author information
         run: echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
 
-      # ✅ 5. Añade timestamp para forzar un cambio (siempre hay cambios nuevos)
+      # ✅ 7. Añade timestamp para forzar un cambio
       - name: Force Change to Trigger PR
         run: echo "$(date)" > timestamp.txt
 
-      # ✅ 6. Añade TODOS los cambios al commit
+      # ✅ 8. Añade TODOS los cambios al commit (incluyendo los nuevos)
       - name: Add all changes
         run: |
           git add .
           git commit -m "Update commit with all changes" || echo "No changes to commit"
 
-      # ✅ 7. Verifica si hay cambios antes de continuar
+      # ✅ 9. Verifica si hay cambios antes de continuar
       - name: Check for changes
         run: |
           git diff --quiet || echo "There are changes to commit" || exit 1
 
-      # ✅ 8. Elimina la rama 'auto-pr-branch' si ya existe para evitar conflictos
+      # ✅ 10. Elimina la rama 'auto-pr-branch' si ya existe para evitar conflictos
       - name: Delete auto-pr-branch if it exists
         run: |
           git push origin --delete auto-pr-branch || echo "Branch does not exist, continuing..."
 
-      # ✅ 9. Crea el Pull Request automático con los cambios
+      # ✅ 11. Crea el Pull Request automático desde `feature/...` hacia `main`
       - name: Raise PR
         uses: peter-evans/create-pull-request@v3
         with:
           branch: "auto-pr-branch"
-          branch-suffix: timestamp  # Agrega sufijo para evitar conflictos
           base: main
           title: "This is the title of the automatic PR"
           committer: ${{ env.GIT_COMMIT_AUTHOR_NAME }} <${{ env.GIT_COMMIT_AUTHOR_EMAIL }}>
@@ -64,6 +75,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           delete-branch: true
 
-      # ✅ 10. Habilita depuración para obtener más detalles en caso de errores
+      # ✅ 12. Habilita depuración para obtener más detalles en caso de errores
       - name: Enable Debug Mode (Optional)
         run: echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
