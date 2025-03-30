@@ -3,7 +3,7 @@ name: Demo to create automatic PR
 on:
   push:
     branches:
-      - "**"
+      - main
 
 jobs:
   updateAuthor:
@@ -18,16 +18,11 @@ jobs:
       - name: Extract commit data
         uses: rlespinasse/git-commit-data-action@v1.x
 
-      # ✅ 3. Actualiza el archivo AUTHOR con el nombre del autor del commit
-      - name: Update Author information
-        run: echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
-
       # ✅ 4. Fuerza un cambio para asegurar siempre un nuevo commit
       - name: Force Change to Trigger PR
         run: |
           echo "$(date)" > timestamp.txt
-          echo "${{ env.GIT_COMMIT_AUTHOR_NAME }}" > AUTHOR
-
+          
       # ✅ 5. Verifica si hay cambios antes de continuar
       - name: Check for changes
         run: |
